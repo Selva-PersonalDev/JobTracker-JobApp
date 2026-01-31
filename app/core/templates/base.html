@@ -15,15 +15,10 @@
     .app-header {
       background: linear-gradient(135deg, #4338ca, #6366f1, #38bdf8);
       color: white;
-      padding: 40px 50px;
-      border-radius: 0 0 30px 30px;
-      box-shadow: 0 20px 50px rgba(79,70,229,0.4);
-      margin-bottom: 40px;
-    }
-
-    .app-header h1 {
-      font-weight: 700;
-      letter-spacing: -0.5px;
+      padding: 30px 40px;
+      border-radius: 0 0 28px 28px;
+      box-shadow: 0 18px 45px rgba(79,70,229,0.4);
+      margin-bottom: 35px;
     }
 
     .card {
@@ -36,9 +31,17 @@
 
 <body>
 
-<div class="app-header">
-  <h1>JobTracker</h1>
-  <p class="opacity-75 mb-0">A modern way to track your career journey</p>
+<div class="app-header d-flex justify-content-between align-items-center">
+  <div>
+    <h2 class="fw-bold mb-0">JobTracker</h2>
+    <small class="opacity-75">Track your career journey professionally</small>
+  </div>
+
+  {% if request.session.get("user_id") %}
+    <a href="/logout" class="btn btn-sm btn-light fw-semibold">
+      Logout
+    </a>
+  {% endif %}
 </div>
 
 <div class="container-fluid px-4">

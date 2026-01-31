@@ -1,14 +1,19 @@
+import io
+from datetime import date
+
+import pandas as pd
 from fastapi import APIRouter, Request, Form
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from datetime import date
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 from app.core.db import SessionLocal, engine
 from app.core.models import Base, Job, User
 from app.core.auth import hash_password, verify_password, get_current_user
 
-# Ensure tables exist
+# Ensure DB tables exist
 Base.metadata.create_all(bind=engine)
 
 router = APIRouter()
@@ -26,14 +31,13 @@ STATUS_OPTIONS = [
     "Joined",
 ]
 
-# ---------------- AUTH ----------------
+# =====================================================
+# AUTH ROUTES
+# =====================================================
 
 @router.get("/login")
 def login_page(request: Request):
-    return templates.TemplateResponse(
-        "login.html",
-        {"request": request}
-    )
+    return templates.TemplateResponse("login.html", {"request": request})
 
 
 @router.post("/login")
@@ -59,10 +63,7 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
 
 @router.get("/register")
 def register_page(request: Request):
-    return templates.TemplateResponse(
-        "register.html",
-        {"request": request}
-    )
+    return templates.TemplateResponse("register.html", {"request": request})
 
 
 @router.post("/register")
@@ -104,7 +105,9 @@ def forgot_password(request: Request):
         {"request": request}
     )
 
-# ---------------- DASHBOARD ----------------
+# =====================================================
+# DASHBOARD & JOB MANAGEMENT
+# =====================================================
 
 @router.get("/")
 def home(request: Request):
@@ -128,7 +131,7 @@ def home(request: Request):
         {
             "request": request,
             "jobs": jobs,
-            "statuses": STATUS_OPTIONS
+            "statuses": STATUS_OPTIONS,
         }
     )
 
@@ -232,4 +235,89 @@ def job_detail(request: Request, job_id: int):
             "request": request,
             "job": job
         }
+    )
+
+# =====================================================
+# EXPORT ROUTES
+# =====================================================
+
+@router.get("/export/xlsx")
+def export_xlsx(request: Request):
+    user_id = get_current_user(request)
+    if not user_id:
+        return RedirectResponse("/login", status_code=303)
+
+    db: Session = SessionLocal()
+    try:
+        jobs = db.query(Job).filter(Job.user_id == user_id).all()
+    finally:
+        db.close()
+
+    data = [
+        {
+            "Company": j.company,
+            "Role": j.role,
+            "Status": j.status,
+            "Applied Date": j.applied_date,
+            "Location": j.location,
+            "CTC Budget": j.ctc_budget,
+            "Source": j.source,
+        }
+        for j in jobs
+    ]
+
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    df.to_excel(output, index=False)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=jobtracker.xlsx"
+        },
+    )
+
+
+@router.get("/export/pdf")
+def export_pdf(request: Request):
+    user_id = get_current_user(request)
+    if not user_id:
+        return RedirectResponse("/login", status_code=303)
+
+    db: Session = SessionLocal()
+    try:
+        jobs = db.query(Job).filter(Job.user_id == user_id).all()
+    finally:
+        db.close()
+
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    y = height - 50
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(40, y, "Job Applications")
+    y -= 30
+
+    p.setFont("Helvetica", 10)
+    for job in jobs:
+        line = f"{job.company} | {job.role} | {job.status}"
+        p.drawString(40, y, line)
+        y -= 15
+        if y < 50:
+            p.showPage()
+            p.setFont("Helvetica", 10)
+            y = height - 50
+
+    p.save()
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "attachment; filename=jobtracker.pdf"
+        },
     )
