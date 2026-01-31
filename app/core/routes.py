@@ -1,9 +1,11 @@
 import io
+import os
+import shutil
 from datetime import date
 
 import pandas as pd
-from fastapi import APIRouter, Request, Form
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi import APIRouter, Request, Form, UploadFile, File
+from fastapi.responses import RedirectResponse, StreamingResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from reportlab.lib.pagesizes import A4
@@ -13,8 +15,10 @@ from app.core.db import SessionLocal, engine
 from app.core.models import Base, Job, User
 from app.core.auth import hash_password, verify_password, get_current_user
 
-# Ensure DB tables exist
 Base.metadata.create_all(bind=engine)
+
+UPLOAD_DIR = "/data/jd_files"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/core/templates")
@@ -31,9 +35,7 @@ STATUS_OPTIONS = [
     "Joined",
 ]
 
-# =====================================================
-# AUTH ROUTES
-# =====================================================
+# ---------------- AUTH ----------------
 
 @router.get("/login")
 def login_page(request: Request):
@@ -42,19 +44,14 @@ def login_page(request: Request):
 
 @router.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    db: Session = SessionLocal()
-    try:
-        user = db.query(User).filter(User.username == username).first()
-    finally:
-        db.close()
+    db = SessionLocal()
+    user = db.query(User).filter(User.username == username).first()
+    db.close()
 
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(
             "login.html",
-            {
-                "request": request,
-                "error": "Invalid username or password"
-            }
+            {"request": request, "error": "Invalid username or password"}
         )
 
     request.session["user_id"] = user.id
@@ -68,27 +65,18 @@ def register_page(request: Request):
 
 @router.post("/register")
 def register(request: Request, username: str = Form(...), password: str = Form(...)):
-    db: Session = SessionLocal()
-    try:
-        existing = db.query(User).filter(User.username == username).first()
-        if existing:
-            return templates.TemplateResponse(
-                "register.html",
-                {
-                    "request": request,
-                    "error": "Username already exists. Please choose another."
-                }
-            )
-
-        user = User(
-            username=username,
-            password_hash=hash_password(password)
-        )
-        db.add(user)
-        db.commit()
-    finally:
+    db = SessionLocal()
+    if db.query(User).filter(User.username == username).first():
         db.close()
+        return templates.TemplateResponse(
+            "register.html",
+            {"request": request, "error": "Username already exists"}
+        )
 
+    user = User(username=username, password_hash=hash_password(password))
+    db.add(user)
+    db.commit()
+    db.close()
     return RedirectResponse("/login", status_code=303)
 
 
@@ -97,17 +85,7 @@ def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
 
-
-@router.get("/forgot-password")
-def forgot_password(request: Request):
-    return templates.TemplateResponse(
-        "forgot_password.html",
-        {"request": request}
-    )
-
-# =====================================================
-# DASHBOARD & JOB MANAGEMENT
-# =====================================================
+# ---------------- DASHBOARD ----------------
 
 @router.get("/")
 def home(request: Request):
@@ -115,24 +93,13 @@ def home(request: Request):
     if not user_id:
         return RedirectResponse("/login", status_code=303)
 
-    db: Session = SessionLocal()
-    try:
-        jobs = (
-            db.query(Job)
-            .filter(Job.user_id == user_id)
-            .order_by(Job.created_at.desc())
-            .all()
-        )
-    finally:
-        db.close()
+    db = SessionLocal()
+    jobs = db.query(Job).filter(Job.user_id == user_id).order_by(Job.created_at.desc()).all()
+    db.close()
 
     return templates.TemplateResponse(
         "index.html",
-        {
-            "request": request,
-            "jobs": jobs,
-            "statuses": STATUS_OPTIONS,
-        }
+        {"request": request, "jobs": jobs, "statuses": STATUS_OPTIONS}
     )
 
 
@@ -147,30 +114,38 @@ def add_job(
     ctc_budget: str = Form(None),
     applied_date: str = Form(None),
     status: str = Form(...),
+    job_description: str = Form(None),
     comments: str = Form(None),
+    jd_file: UploadFile = File(None),
 ):
     user_id = get_current_user(request)
     if not user_id:
         return RedirectResponse("/login", status_code=303)
 
-    db: Session = SessionLocal()
-    try:
-        job = Job(
-            user_id=user_id,
-            company=company,
-            role=role,
-            location=location,
-            job_url=job_url,
-            source=source,
-            ctc_budget=ctc_budget,
-            applied_date=date.fromisoformat(applied_date) if applied_date else None,
-            status=status,
-            comments=comments,
-        )
-        db.add(job)
-        db.commit()
-    finally:
-        db.close()
+    filename = None
+    if jd_file and jd_file.filename:
+        filename = f"{user_id}_{jd_file.filename}"
+        with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
+            shutil.copyfileobj(jd_file.file, f)
+
+    db = SessionLocal()
+    job = Job(
+        user_id=user_id,
+        company=company,
+        role=role,
+        location=location,
+        job_url=job_url,
+        source=source,
+        ctc_budget=ctc_budget,
+        applied_date=date.fromisoformat(applied_date) if applied_date else None,
+        status=status,
+        job_description=job_description,
+        jd_filename=filename,
+        comments=comments,
+    )
+    db.add(job)
+    db.commit()
+    db.close()
 
     return RedirectResponse("/", status_code=303)
 
@@ -178,138 +153,98 @@ def add_job(
 @router.post("/update-status/{job_id}")
 def update_status(request: Request, job_id: int, status: str = Form(...)):
     user_id = get_current_user(request)
-    db: Session = SessionLocal()
-    try:
-        job = (
-            db.query(Job)
-            .filter(Job.id == job_id, Job.user_id == user_id)
-            .first()
-        )
-        if job:
-            job.status = status
-            db.commit()
-    finally:
-        db.close()
-
+    db = SessionLocal()
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+    if job:
+        job.status = status
+        db.commit()
+    db.close()
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/delete/{job_id}")
 def delete_job(request: Request, job_id: int):
     user_id = get_current_user(request)
-    db: Session = SessionLocal()
-    try:
-        job = (
-            db.query(Job)
-            .filter(Job.id == job_id, Job.user_id == user_id)
-            .first()
-        )
-        if job:
-            db.delete(job)
-            db.commit()
-    finally:
-        db.close()
-
+    db = SessionLocal()
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+    if job:
+        db.delete(job)
+        db.commit()
+    db.close()
     return RedirectResponse("/", status_code=303)
 
 
 @router.get("/job/{job_id}")
 def job_detail(request: Request, job_id: int):
     user_id = get_current_user(request)
-    db: Session = SessionLocal()
-    try:
-        job = (
-            db.query(Job)
-            .filter(Job.id == job_id, Job.user_id == user_id)
-            .first()
-        )
-    finally:
-        db.close()
-
+    db = SessionLocal()
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+    db.close()
     if not job:
         return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse("job_detail.html", {"request": request, "job": job})
 
-    return templates.TemplateResponse(
-        "job_detail.html",
-        {
-            "request": request,
-            "job": job
-        }
-    )
 
-# =====================================================
-# EXPORT ROUTES
-# =====================================================
+@router.get("/jd/{filename}")
+def download_jd(filename: str):
+    return FileResponse(os.path.join(UPLOAD_DIR, filename), filename=filename)
+
+# ---------------- EXPORT ----------------
 
 @router.get("/export/xlsx")
 def export_xlsx(request: Request):
     user_id = get_current_user(request)
-    if not user_id:
-        return RedirectResponse("/login", status_code=303)
+    db = SessionLocal()
+    jobs = db.query(Job).filter(Job.user_id == user_id).all()
+    db.close()
 
-    db: Session = SessionLocal()
-    try:
-        jobs = db.query(Job).filter(Job.user_id == user_id).all()
-    finally:
-        db.close()
-
-    data = [
-        {
-            "Company": j.company,
-            "Role": j.role,
-            "Status": j.status,
-            "Applied Date": j.applied_date,
-            "Location": j.location,
-            "CTC Budget": j.ctc_budget,
-            "Source": j.source,
-        }
-        for j in jobs
-    ]
+    data = [{
+        "Company": j.company,
+        "Role": j.role,
+        "Status": j.status,
+        "Location": j.location,
+        "Applied Date": j.applied_date,
+        "CTC Budget": j.ctc_budget,
+        "Source": j.source,
+        "Job Description": j.job_description,
+        "JD File": j.jd_filename,
+        "Comments": j.comments,
+    } for j in jobs]
 
     df = pd.DataFrame(data)
-    output = io.BytesIO()
-    df.to_excel(output, index=False)
-    output.seek(0)
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False)
+    buf.seek(0)
 
     return StreamingResponse(
-        output,
+        buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": "attachment; filename=jobtracker.xlsx"
-        },
+        headers={"Content-Disposition": "attachment; filename=jobtracker.xlsx"}
     )
 
 
 @router.get("/export/pdf")
 def export_pdf(request: Request):
     user_id = get_current_user(request)
-    if not user_id:
-        return RedirectResponse("/login", status_code=303)
-
-    db: Session = SessionLocal()
-    try:
-        jobs = db.query(Job).filter(Job.user_id == user_id).all()
-    finally:
-        db.close()
+    db = SessionLocal()
+    jobs = db.query(Job).filter(Job.user_id == user_id).all()
+    db.close()
 
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    y = 800
 
-    y = height - 50
     p.setFont("Helvetica-Bold", 14)
     p.drawString(40, y, "Job Applications")
     y -= 30
-
     p.setFont("Helvetica", 10)
-    for job in jobs:
-        line = f"{job.company} | {job.role} | {job.status}"
-        p.drawString(40, y, line)
-        y -= 15
-        if y < 50:
+
+    for j in jobs:
+        p.drawString(40, y, f"{j.company} | {j.role} | {j.status}")
+        y -= 14
+        if y < 40:
             p.showPage()
-            p.setFont("Helvetica", 10)
-            y = height - 50
+            y = 800
 
     p.save()
     buffer.seek(0)
@@ -317,7 +252,5 @@ def export_pdf(request: Request):
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": "attachment; filename=jobtracker.pdf"
-        },
+        headers={"Content-Disposition": "attachment; filename=jobtracker.pdf"}
     )

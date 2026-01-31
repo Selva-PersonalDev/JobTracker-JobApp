@@ -4,6 +4,7 @@ from datetime import datetime
 
 Base = declarative_base()
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -29,13 +30,14 @@ class Job(Base):
     ctc_budget = Column(String)
     applied_date = Column(Date)
     status = Column(String)
+
+    # ✅ NEW (ADDITIVE)
+    job_description = Column(Text)
+    jd_filename = Column(String)
+
     comments = Column(Text)
 
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="jobs")

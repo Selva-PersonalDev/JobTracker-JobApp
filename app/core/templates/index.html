@@ -3,98 +3,46 @@
 
 <div class="row g-4">
 
-  <!-- LEFT PANEL -->
   <div class="col-lg-4">
     <div class="card p-4">
-      <h6 class="text-muted text-uppercase mb-3">Add Job</h6>
-
-      <form method="post" action="/add">
+      <form method="post" action="/add" enctype="multipart/form-data">
         <input class="form-control mb-2" name="company" placeholder="Company" required>
         <input class="form-control mb-2" name="role" placeholder="Role" required>
-        <input class="form-control mb-2" name="location" placeholder="Location">
-        <input class="form-control mb-2" name="job_url" placeholder="Job URL">
-        <input class="form-control mb-2" name="source" placeholder="Source">
-        <input class="form-control mb-2" name="ctc_budget" placeholder="CTC Budget">
-        <input type="date" class="form-control mb-2" name="applied_date">
 
-        <select class="form-select mb-2" name="status" required>
-          {% for s in statuses %}
-            <option value="{{ s }}">{{ s }}</option>
-          {% endfor %}
-        </select>
-
-        <textarea class="form-control mb-3" name="comments" placeholder="Comments"></textarea>
+        <textarea class="form-control mb-2" name="job_description" placeholder="Job Description (optional)"></textarea>
+        <input type="file" class="form-control mb-2" name="jd_file">
 
         <button class="btn btn-primary w-100">Save Job</button>
       </form>
     </div>
   </div>
 
-  <!-- RIGHT PANEL -->
   <div class="col-lg-8">
     <div class="card p-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="text-muted text-uppercase mb-0">Applications</h6>
-
-        <div>
-          <a href="/export/xlsx" class="btn btn-sm btn-outline-success me-2">
-            Export Excel
-          </a>
-          <a href="/export/pdf" class="btn btn-sm btn-outline-danger">
-            Export PDF
-          </a>
-        </div>
-      </div>
-
       <table class="table align-middle">
         <thead>
           <tr>
             <th>Company</th>
             <th>Role</th>
-            <th>Status</th>
-            <th>Applied</th>
+            <th>JD</th>
             <th>Actions</th>
           </tr>
         </thead>
-
         <tbody>
-        {% if jobs %}
-          {% for job in jobs %}
+        {% for job in jobs %}
           <tr>
-            <td><strong>{{ job.company }}</strong></td>
+            <td>{{ job.company }}</td>
             <td>{{ job.role }}</td>
             <td>
-              <form method="post" action="/update-status/{{ job.id }}">
-                <select name="status"
-                        class="form-select form-select-sm"
-                        style="width:180px"
-                        onchange="this.form.submit()">
-                  {% for s in statuses %}
-                    <option value="{{ s }}" {% if s == job.status %}selected{% endif %}>
-                      {{ s }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </form>
+              {% if job.jd_filename %}
+                <a href="/jd/{{ job.jd_filename }}">📎</a>
+              {% else %}-{% endif %}
             </td>
-            <td class="text-muted">{{ job.applied_date or "-" }}</td>
             <td>
-              <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">
-                More details →
-              </a>
-              <form method="post" action="/delete/{{ job.id }}" style="display:inline">
-                <button class="btn btn-sm btn-outline-danger">✕</button>
-              </form>
+              <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">More details</a>
             </td>
           </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="5" class="text-center text-muted py-4">
-              No jobs added yet. Start by adding your first application 🚀
-            </td>
-          </tr>
-        {% endif %}
+        {% endfor %}
         </tbody>
       </table>
     </div>
