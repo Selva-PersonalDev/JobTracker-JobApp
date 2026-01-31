@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Jobs</h2>
+<ul>
+{% for job in jobs %}
+  <li>{{ job.company }} - {{ job.role }} - {{ job.status }}</li>
+{% endfor %}
+</ul>
+
+<h3>Add Job</h3>
+<form action="/add" method="post">
+  <input name="company" placeholder="Company" required>
+  <input name="role" placeholder="Role" required>
+  <input name="status" placeholder="Status" required>
+  <button type="submit">Add</button>
+</form>
+{% endblock %}
