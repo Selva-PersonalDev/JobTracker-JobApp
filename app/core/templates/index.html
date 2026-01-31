@@ -3,10 +3,10 @@
 
 <div class="row g-4">
 
-  <!-- LEFT: JOB FORM -->
+  <!-- LEFT PANEL -->
   <div class="col-lg-4">
     <div class="card p-4">
-      <h5 class="fw-semibold mb-3">Add Job</h5>
+      <div class="section-title">Add / Track Job</div>
 
       <form method="post" action="/add">
         <input class="form-control mb-2" name="company" placeholder="Company" required>
@@ -17,7 +17,7 @@
         <input class="form-control mb-2" name="ctc_budget" placeholder="CTC Budget">
         <input type="date" class="form-control mb-2" name="applied_date">
 
-        <select class="form-select mb-2" name="status">
+        <select class="form-select mb-2" name="status" required>
           {% for s in statuses %}
           <option>{{ s }}</option>
           {% endfor %}
@@ -30,29 +30,33 @@
     </div>
   </div>
 
-  <!-- RIGHT: JOB TABLE -->
+  <!-- RIGHT PANEL -->
   <div class="col-lg-8">
     <div class="card p-4">
-      <h5 class="fw-semibold mb-3">Applications</h5>
+      <div class="section-title">Applications</div>
 
       <table class="table align-middle">
-        <thead class="text-muted">
+        <thead>
           <tr>
             <th>Company</th>
             <th>Role</th>
             <th>Status</th>
-            <th></th>
+            <th>Applied</th>
+            <th>Actions</th>
           </tr>
         </thead>
 
         <tbody>
           {% for job in jobs %}
-          <tr onclick="window.location='/job/{{ job.id }}'">
-            <td>{{ job.company }}</td>
+          <tr>
+            <td><strong>{{ job.company }}</strong></td>
             <td>{{ job.role }}</td>
+
+            <!-- STATUS UPDATE -->
             <td>
               <form method="post" action="/update-status/{{ job.id }}">
-                <select name="status" class="form-select form-select-sm"
+                <select name="status"
+                        class="form-select form-select-sm status-select"
                         onchange="this.form.submit()">
                   {% for s in statuses %}
                   <option value="{{ s }}" {% if s==job.status %}selected{% endif %}>{{ s }}</option>
@@ -60,15 +64,27 @@
                 </select>
               </form>
             </td>
+
+            <!-- APPLIED DATE -->
+            <td class="text-muted">
+              {{ job.applied_date or "-" }}
+            </td>
+
+            <!-- ACTIONS -->
             <td>
-              <form method="post" action="/delete/{{ job.id }}">
-                <button class="btn btn-sm btn-outline-danger">✕</button>
+              <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary action-btn">
+                More details →
+              </a>
+
+              <form method="post" action="/delete/{{ job.id }}" style="display:inline">
+                <button class="btn btn-sm btn-outline-danger action-btn">✕</button>
               </form>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
+
     </div>
   </div>
 
