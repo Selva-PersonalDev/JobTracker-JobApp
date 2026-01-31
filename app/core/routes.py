@@ -94,12 +94,21 @@ def home(request: Request):
         return RedirectResponse("/login", status_code=303)
 
     db = SessionLocal()
-    jobs = db.query(Job).filter(Job.user_id == user_id).order_by(Job.created_at.desc()).all()
+    jobs = (
+        db.query(Job)
+        .filter(Job.user_id == user_id)
+        .order_by(Job.created_at.desc())
+        .all()
+    )
     db.close()
 
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "jobs": jobs, "statuses": STATUS_OPTIONS}
+        {
+            "request": request,
+            "jobs": jobs,
+            "statuses": STATUS_OPTIONS
+        }
     )
 
 
@@ -180,9 +189,14 @@ def job_detail(request: Request, job_id: int):
     db = SessionLocal()
     job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
     db.close()
+
     if not job:
         return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse("job_detail.html", {"request": request, "job": job})
+
+    return templates.TemplateResponse(
+        "job_detail.html",
+        {"request": request, "job": job}
+    )
 
 
 @router.get("/jd/{filename}")
@@ -201,11 +215,12 @@ def export_xlsx(request: Request):
     data = [{
         "Company": j.company,
         "Role": j.role,
-        "Status": j.status,
         "Location": j.location,
-        "Applied Date": j.applied_date,
-        "CTC Budget": j.ctc_budget,
+        "Job URL": j.job_url,
         "Source": j.source,
+        "CTC Budget": j.ctc_budget,
+        "Applied Date": j.applied_date,
+        "Status": j.status,
         "Job Description": j.job_description,
         "JD File": j.jd_filename,
         "Comments": j.comments,
@@ -240,7 +255,7 @@ def export_pdf(request: Request):
     p.setFont("Helvetica", 10)
 
     for j in jobs:
-        p.drawString(40, y, f"{j.company} | {j.role} | {j.status}")
+        p.drawString(40, y, f"{j.company} | {j.role} | {j.status} | {j.applied_date}")
         y -= 14
         if y < 40:
             p.showPage()

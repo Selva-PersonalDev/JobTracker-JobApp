@@ -31,7 +31,7 @@ class Job(Base):
     applied_date = Column(Date)
     status = Column(String)
 
-    # ✅ NEW (ADDITIVE)
+    # JD additions (additive)
     job_description = Column(Text)
     jd_filename = Column(String)
 

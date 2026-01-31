@@ -3,27 +3,54 @@
 
 <div class="row g-4">
 
+  <!-- LEFT: JOB ENTRY -->
   <div class="col-lg-4">
-    <div class="card p-4">
+    <div class="card p-4 shadow-sm">
+      <h6 class="mb-3">Add Job</h6>
+
       <form method="post" action="/add" enctype="multipart/form-data">
         <input class="form-control mb-2" name="company" placeholder="Company" required>
         <input class="form-control mb-2" name="role" placeholder="Role" required>
+        <input class="form-control mb-2" name="location" placeholder="Location">
+        <input class="form-control mb-2" name="job_url" placeholder="Job URL">
+        <input class="form-control mb-2" name="source" placeholder="Source">
+        <input class="form-control mb-2" name="ctc_budget" placeholder="CTC Budget">
+        <input type="date" class="form-control mb-2" name="applied_date">
+
+        <select class="form-select mb-2" name="status" required>
+          {% for s in statuses %}
+            <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
 
         <textarea class="form-control mb-2" name="job_description" placeholder="Job Description (optional)"></textarea>
         <input type="file" class="form-control mb-2" name="jd_file">
+
+        <textarea class="form-control mb-3" name="comments" placeholder="Comments"></textarea>
 
         <button class="btn btn-primary w-100">Save Job</button>
       </form>
     </div>
   </div>
 
+  <!-- RIGHT: JOB TABLE -->
   <div class="col-lg-8">
-    <div class="card p-4">
+    <div class="card p-4 shadow-sm">
+      <div class="d-flex justify-content-between mb-3">
+        <h6 class="mb-0">Applications</h6>
+        <div>
+          <a href="/export/xlsx" class="btn btn-sm btn-outline-success">Excel</a>
+          <a href="/export/pdf" class="btn btn-sm btn-outline-danger">PDF</a>
+        </div>
+      </div>
+
       <table class="table align-middle">
-        <thead>
+        <thead class="table-light">
           <tr>
             <th>Company</th>
             <th>Role</th>
+            <th>Status</th>
+            <th>Applied</th>
             <th>JD</th>
             <th>Actions</th>
           </tr>
@@ -34,12 +61,23 @@
             <td>{{ job.company }}</td>
             <td>{{ job.role }}</td>
             <td>
-              {% if job.jd_filename %}
-                <a href="/jd/{{ job.jd_filename }}">📎</a>
-              {% else %}-{% endif %}
+              <form method="post" action="/update-status/{{ job.id }}">
+                <select name="status"
+                        class="form-select form-select-sm"
+                        onchange="this.form.submit()">
+                  {% for s in statuses %}
+                    <option value="{{ s }}" {% if s == job.status %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </form>
             </td>
+            <td>{{ job.applied_date or "-" }}</td>
+            <td>{% if job.jd_filename %}📎{% else %}-{% endif %}</td>
             <td>
-              <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">More details</a>
+              <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">More</a>
+              <form method="post" action="/delete/{{ job.id }}" style="display:inline">
+                <button class="btn btn-sm btn-outline-danger">✕</button>
+              </form>
             </td>
           </tr>
         {% endfor %}

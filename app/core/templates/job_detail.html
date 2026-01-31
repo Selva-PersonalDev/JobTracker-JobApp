@@ -1,16 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="card p-4 mx-auto" style="max-width:800px">
+<div class="card p-4 shadow-sm mx-auto" style="max-width:900px">
+
+  <a href="/" class="btn btn-sm btn-outline-secondary mb-3">← Back</a>
+
   <h4>{{ job.company }} – {{ job.role }}</h4>
+  <hr>
+
+  <p><strong>Location:</strong> {{ job.location }}</p>
+  <p><strong>Job URL:</strong> {{ job.job_url }}</p>
+  <p><strong>Source:</strong> {{ job.source }}</p>
+  <p><strong>CTC Budget:</strong> {{ job.ctc_budget }}</p>
+  <p><strong>Applied Date:</strong> {{ job.applied_date }}</p>
+  <p><strong>Status:</strong> {{ job.status }}</p>
+
   <hr>
 
   <h6>Job Description</h6>
   <p>{{ job.job_description or "Not provided" }}</p>
 
   {% if job.jd_filename %}
-    <a href="/jd/{{ job.jd_filename }}">Download JD</a>
+    <p>
+      <strong>Attachment:</strong>
+      <a href="/jd/{{ job.jd_filename }}">Download JD</a>
+    </p>
   {% endif %}
+
+  <hr>
+
+  <h6>Comments</h6>
+  <p>{{ job.comments }}</p>
+
 </div>
 
 {% endblock %}
