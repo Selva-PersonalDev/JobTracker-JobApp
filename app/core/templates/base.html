@@ -2,22 +2,74 @@
 <html>
 <head>
   <title>Job Tracker</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
   <style>
-    body { background: #f4f6f9; }
-    .card { box-shadow: 0 8px 24px rgba(0,0,0,0.05); border-radius: 12px; }
-    .table-hover tbody tr:hover { background-color: #eef2ff; cursor: pointer; }
-    .badge { padding: 6px 10px; }
+    :root {
+      --primary: #4f46e5;
+      --secondary: #22c55e;
+      --bg: #f8fafc;
+      --text: #0f172a;
+      --muted: #64748b;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: white;
+      padding: 28px 40px;
+      border-radius: 0 0 24px 24px;
+      box-shadow: 0 12px 30px rgba(79,70,229,0.3);
+      margin-bottom: 32px;
+    }
+
+    .card {
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      transition: transform 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+    }
+
+    table tbody tr {
+      transition: background 0.2s ease;
+    }
+
+    table tbody tr:hover {
+      background: #eef2ff;
+      cursor: pointer;
+    }
+
+    .badge-status {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 12px;
+    }
   </style>
 </head>
+
 <body>
-<nav class="navbar navbar-dark bg-dark mb-4">
-  <div class="container-fluid">
-    <span class="navbar-brand fw-bold">Job Tracker</span>
-  </div>
-</nav>
+
+<div class="app-header">
+  <h2 class="fw-bold mb-1">Job Tracker</h2>
+  <p class="mb-0 opacity-75">Track applications, interviews, and offers professionally</p>
+</div>
+
 <div class="container-fluid px-4">
   {% block content %}{% endblock %}
 </div>
+
 </body>
 </html>

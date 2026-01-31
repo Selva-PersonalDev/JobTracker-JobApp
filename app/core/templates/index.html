@@ -2,55 +2,67 @@
 {% block content %}
 
 <div class="row g-4">
-  <!-- LEFT PANEL -->
-  <div class="col-md-4">
-    <div class="card p-4">
-      <h5 class="mb-3">Add Job</h5>
-      <form method="post" action="/add">
-        <input name="company" class="form-control mb-2" placeholder="Company" required>
-        <input name="role" class="form-control mb-2" placeholder="Role" required>
-        <input name="location" class="form-control mb-2" placeholder="Location">
-        <input name="job_url" class="form-control mb-2" placeholder="Job URL">
-        <input name="source" class="form-control mb-2" placeholder="Source">
-        <input name="ctc_budget" class="form-control mb-2" placeholder="CTC Budget">
-        <input type="date" name="applied_date" class="form-control mb-2">
 
-        <select name="status" class="form-select mb-2" required>
+  <!-- LEFT: JOB FORM -->
+  <div class="col-lg-4">
+    <div class="card p-4">
+      <h5 class="fw-semibold mb-3">Add Job</h5>
+
+      <form method="post" action="/add">
+        <input class="form-control mb-2" name="company" placeholder="Company" required>
+        <input class="form-control mb-2" name="role" placeholder="Role" required>
+        <input class="form-control mb-2" name="location" placeholder="Location">
+        <input class="form-control mb-2" name="job_url" placeholder="Job URL">
+        <input class="form-control mb-2" name="source" placeholder="Source">
+        <input class="form-control mb-2" name="ctc_budget" placeholder="CTC Budget">
+        <input type="date" class="form-control mb-2" name="applied_date">
+
+        <select class="form-select mb-2" name="status">
           {% for s in statuses %}
-          <option value="{{ s }}">{{ s }}</option>
+          <option>{{ s }}</option>
           {% endfor %}
         </select>
 
-        <textarea name="comments" class="form-control mb-3" placeholder="Comments"></textarea>
+        <textarea class="form-control mb-3" name="comments" placeholder="Comments"></textarea>
+
         <button class="btn btn-primary w-100">Save Job</button>
       </form>
     </div>
   </div>
 
-  <!-- RIGHT PANEL -->
-  <div class="col-md-8">
+  <!-- RIGHT: JOB TABLE -->
+  <div class="col-lg-8">
     <div class="card p-4">
-      <h5 class="mb-3">Job Applications</h5>
-      <table class="table table-hover align-middle">
-        <thead class="table-light">
+      <h5 class="fw-semibold mb-3">Applications</h5>
+
+      <table class="table align-middle">
+        <thead class="text-muted">
           <tr>
             <th>Company</th>
             <th>Role</th>
             <th>Status</th>
-            <th>Location</th>
             <th></th>
           </tr>
         </thead>
+
         <tbody>
           {% for job in jobs %}
-          <tr>
+          <tr onclick="window.location='/job/{{ job.id }}'">
             <td>{{ job.company }}</td>
             <td>{{ job.role }}</td>
-            <td><span class="badge bg-info">{{ job.status }}</span></td>
-            <td>{{ job.location }}</td>
+            <td>
+              <form method="post" action="/update-status/{{ job.id }}">
+                <select name="status" class="form-select form-select-sm"
+                        onchange="this.form.submit()">
+                  {% for s in statuses %}
+                  <option value="{{ s }}" {% if s==job.status %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </td>
             <td>
               <form method="post" action="/delete/{{ job.id }}">
-                <button class="btn btn-sm btn-outline-danger">Delete</button>
+                <button class="btn btn-sm btn-outline-danger">✕</button>
               </form>
             </td>
           </tr>
@@ -59,6 +71,7 @@
       </table>
     </div>
   </div>
+
 </div>
 
 {% endblock %}
