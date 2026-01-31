@@ -1,7 +1,13 @@
 from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
 from app.core.routes import router
 
 app = FastAPI(title="Job Tracker")
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="CHANGE_ME_LATER"
+)
 
 @app.get("/health")
 def health():
