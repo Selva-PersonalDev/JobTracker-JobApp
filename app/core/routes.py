@@ -182,6 +182,70 @@ def delete_job(request: Request, job_id: int):
     db.close()
     return RedirectResponse("/", status_code=303)
 
+# ---------------- EDIT JOB ----------------
+
+@router.get("/job/{job_id}/edit")
+def edit_job_page(request: Request, job_id: int):
+    user_id = get_current_user(request)
+    db = SessionLocal()
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+    db.close()
+
+    if not job:
+        return RedirectResponse("/", status_code=303)
+
+    return templates.TemplateResponse(
+        "edit_job.html",
+        {"request": request, "job": job, "statuses": STATUS_OPTIONS}
+    )
+
+
+@router.post("/job/{job_id}/edit")
+def update_job(
+    request: Request,
+    job_id: int,
+    company: str = Form(...),
+    role: str = Form(...),
+    location: str = Form(None),
+    job_url: str = Form(None),
+    source: str = Form(None),
+    ctc_budget: str = Form(None),
+    applied_date: str = Form(None),
+    status: str = Form(...),
+    job_description: str = Form(None),
+    comments: str = Form(None),
+    jd_file: UploadFile = File(None),
+):
+    user_id = get_current_user(request)
+    db = SessionLocal()
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+
+    if not job:
+        db.close()
+        return RedirectResponse("/", status_code=303)
+
+    job.company = company
+    job.role = role
+    job.location = location
+    job.job_url = job_url
+    job.source = source
+    job.ctc_budget = ctc_budget
+    job.applied_date = date.fromisoformat(applied_date) if applied_date else None
+    job.status = status
+    job.job_description = job_description
+    job.comments = comments
+
+    if jd_file and jd_file.filename:
+        filename = f"{user_id}_{jd_file.filename}"
+        with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
+            shutil.copyfileobj(jd_file.file, f)
+        job.jd_filename = filename
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/", status_code=303)
+
 
 @router.get("/job/{job_id}")
 def job_detail(request: Request, job_id: int):
@@ -202,70 +266,3 @@ def job_detail(request: Request, job_id: int):
 @router.get("/jd/{filename}")
 def download_jd(filename: str):
     return FileResponse(os.path.join(UPLOAD_DIR, filename), filename=filename)
-
-# ---------------- EXPORT ----------------
-
-@router.get("/export/xlsx")
-def export_xlsx(request: Request):
-    user_id = get_current_user(request)
-    db = SessionLocal()
-    jobs = db.query(Job).filter(Job.user_id == user_id).all()
-    db.close()
-
-    data = [{
-        "Company": j.company,
-        "Role": j.role,
-        "Location": j.location,
-        "Job URL": j.job_url,
-        "Source": j.source,
-        "CTC Budget": j.ctc_budget,
-        "Applied Date": j.applied_date,
-        "Status": j.status,
-        "Job Description": j.job_description,
-        "JD File": j.jd_filename,
-        "Comments": j.comments,
-    } for j in jobs]
-
-    df = pd.DataFrame(data)
-    buf = io.BytesIO()
-    df.to_excel(buf, index=False)
-    buf.seek(0)
-
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=jobtracker.xlsx"}
-    )
-
-
-@router.get("/export/pdf")
-def export_pdf(request: Request):
-    user_id = get_current_user(request)
-    db = SessionLocal()
-    jobs = db.query(Job).filter(Job.user_id == user_id).all()
-    db.close()
-
-    buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=A4)
-    y = 800
-
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(40, y, "Job Applications")
-    y -= 30
-    p.setFont("Helvetica", 10)
-
-    for j in jobs:
-        p.drawString(40, y, f"{j.company} | {j.role} | {j.status} | {j.applied_date}")
-        y -= 14
-        if y < 40:
-            p.showPage()
-            y = 800
-
-    p.save()
-    buffer.seek(0)
-
-    return StreamingResponse(
-        buffer,
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=jobtracker.pdf"}
-    )

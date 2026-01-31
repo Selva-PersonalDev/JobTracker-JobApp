@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card p-4 shadow-sm mx-auto" style="max-width:900px">
+
+  <a href="/" class="btn btn-sm btn-outline-secondary mb-3">← Back</a>
+
+  <h5>Edit Job</h5>
+  <hr>
+
+  <form method="post" enctype="multipart/form-data">
+
+    <input class="form-control mb-2" name="company" value="{{ job.company }}" required>
+    <input class="form-control mb-2" name="role" value="{{ job.role }}" required>
+    <input class="form-control mb-2" name="location" value="{{ job.location }}">
+    <input class="form-control mb-2" name="job_url" value="{{ job.job_url }}">
+    <input class="form-control mb-2" name="source" value="{{ job.source }}">
+    <input class="form-control mb-2" name="ctc_budget" value="{{ job.ctc_budget }}">
+
+    <input type="date" class="form-control mb-2"
+           name="applied_date"
+           value="{{ job.applied_date }}">
+
+    <select class="form-select mb-2" name="status">
+      {% for s in statuses %}
+        <option value="{{ s }}" {% if s == job.status %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+
+    <textarea class="form-control mb-2" name="job_description">{{ job.job_description }}</textarea>
+
+    <div class="mb-2">
+      <label class="form-label">Replace JD (optional)</label>
+      <input type="file" class="form-control" name="jd_file">
+      {% if job.jd_filename %}
+        <small>Current: {{ job.jd_filename }}</small>
+      {% endif %}
+    </div>
+
+    <textarea class="form-control mb-3" name="comments">{{ job.comments }}</textarea>
+
+    <button class="btn btn-primary w-100">Save Changes</button>
+  </form>
+</div>
+
+{% endblock %}

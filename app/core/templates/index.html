@@ -23,9 +23,8 @@
           {% endfor %}
         </select>
 
-        <textarea class="form-control mb-2" name="job_description" placeholder="Job Description (optional)"></textarea>
+        <textarea class="form-control mb-2" name="job_description" placeholder="Job Description"></textarea>
         <input type="file" class="form-control mb-2" name="jd_file">
-
         <textarea class="form-control mb-3" name="comments" placeholder="Comments"></textarea>
 
         <button class="btn btn-primary w-100">Save Job</button>
@@ -36,13 +35,7 @@
   <!-- RIGHT: JOB TABLE -->
   <div class="col-lg-8">
     <div class="card p-4 shadow-sm">
-      <div class="d-flex justify-content-between mb-3">
-        <h6 class="mb-0">Applications</h6>
-        <div>
-          <a href="/export/xlsx" class="btn btn-sm btn-outline-success">Excel</a>
-          <a href="/export/pdf" class="btn btn-sm btn-outline-danger">PDF</a>
-        </div>
-      </div>
+      <h6 class="mb-3">Applications</h6>
 
       <table class="table align-middle">
         <thead class="table-light">
@@ -72,8 +65,17 @@
               </form>
             </td>
             <td>{{ job.applied_date or "-" }}</td>
-            <td>{% if job.jd_filename %}📎{% else %}-{% endif %}</td>
             <td>
+              {% if job.jd_filename %}
+                <a href="/jd/{{ job.jd_filename }}" title="{{ job.jd_filename }}">
+                  📎 {{ job.jd_filename }}
+                </a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              <a href="/job/{{ job.id }}/edit" class="btn btn-sm btn-outline-secondary" title="Edit">✏️</a>
               <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">More</a>
               <form method="post" action="/delete/{{ job.id }}" style="display:inline">
                 <button class="btn btn-sm btn-outline-danger">✕</button>
