@@ -32,6 +32,10 @@ class Job(Base):
     comments = Column(Text)
 
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
 
     user = relationship("User", back_populates="jobs")

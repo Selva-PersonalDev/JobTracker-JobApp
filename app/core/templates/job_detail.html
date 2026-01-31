@@ -1,22 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="card p-4">
-  <h4 class="fw-bold">{{ job.company }} — {{ job.role }}</h4>
-  <p class="text-muted">{{ job.location }}</p>
+<div class="d-flex justify-content-center">
+  <div class="card p-5" style="max-width:800px; width:100%;">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h3 class="fw-bold mb-0">{{ job.company }}</h3>
+        <p class="text-muted">{{ job.role }} · {{ job.location }}</p>
+      </div>
+      <a href="/" class="btn btn-sm btn-outline-secondary">← Back</a>
+    </div>
 
-  <hr>
+    <hr>
 
-  <p><strong>Status:</strong> {{ job.status }}</p>
-  <p><strong>Source:</strong> {{ job.source }}</p>
-  <p><strong>CTC:</strong> {{ job.ctc_budget }}</p>
-  <p><strong>Applied On:</strong> {{ job.applied_date }}</p>
-  <p><strong>Job URL:</strong> <a href="{{ job.job_url }}" target="_blank">{{ job.job_url }}</a></p>
+    <div class="row mb-3">
+      <div class="col-md-4"><strong>Status</strong><br>{{ job.status }}</div>
+      <div class="col-md-4"><strong>Applied on</strong><br>{{ job.applied_date }}</div>
+      <div class="col-md-4"><strong>CTC</strong><br>{{ job.ctc_budget }}</div>
+    </div>
 
-  <p><strong>Comments:</strong></p>
-  <p>{{ job.comments }}</p>
+    <div class="row mb-3">
+      <div class="col-md-6"><strong>Source</strong><br>{{ job.source }}</div>
+      <div class="col-md-6"><strong>Job URL</strong><br>
+        <a href="{{ job.job_url }}" target="_blank">{{ job.job_url }}</a>
+      </div>
+    </div>
 
-  <a href="/" class="btn btn-secondary mt-3">Back</a>
+    <div>
+      <strong>Comments</strong>
+      <p class="mt-1">{{ job.comments or "No comments added." }}</p>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

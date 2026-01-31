@@ -6,7 +6,7 @@ app = FastAPI(title="Job Tracker")
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key="CHANGE_ME_LATER"
+    secret_key="dev-secret-change-later"
 )
 
 @app.get("/health")

@@ -1,11 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card p-4 mx-auto" style="max-width:400px">
-<h4>Register</h4>
-<form method="post">
-<input class="form-control mb-2" name="username">
-<input type="password" class="form-control mb-3" name="password">
-<button class="btn btn-success w-100">Register</button>
-</form>
+
+<div class="d-flex justify-content-center">
+  <div class="card p-4" style="max-width:420px; width:100%;">
+    <h4 class="fw-bold mb-1">Create account</h4>
+    <p class="text-muted mb-3">Start tracking your job applications</p>
+
+    <form method="post">
+      <label class="form-label">Username</label>
+      <input name="username" class="form-control mb-3" placeholder="Choose a username" required>
+
+      <label class="form-label">Password</label>
+      <input type="password" name="password" class="form-control mb-3" placeholder="Choose a strong password" required>
+
+      <button class="btn btn-success w-100">Register</button>
+    </form>
+
+    <a href="/login" class="small mt-3 d-block">Back to login</a>
+  </div>
 </div>
+
 {% endblock %}
