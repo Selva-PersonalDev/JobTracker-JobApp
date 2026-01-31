@@ -1,38 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h4>Add Job</h4>
-<form method="post" action="/add" class="row g-3 mb-4">
-  <div class="col-md-4"><input name="company" class="form-control" placeholder="Company" required></div>
-  <div class="col-md-4"><input name="role" class="form-control" placeholder="Role" required></div>
-  <div class="col-md-4"><input name="location" class="form-control" placeholder="Location"></div>
-  <div class="col-md-4"><input name="job_url" class="form-control" placeholder="Job URL"></div>
-  <div class="col-md-4"><input name="source" class="form-control" placeholder="Source"></div>
-  <div class="col-md-4"><input name="ctc_budget" class="form-control" placeholder="CTC Budget"></div>
-  <div class="col-md-4"><input type="date" name="applied_date" class="form-control"></div>
-  <div class="col-md-4"><input name="status" class="form-control" placeholder="Status"></div>
-  <div class="col-md-12"><textarea name="comments" class="form-control" placeholder="Comments"></textarea></div>
-  <div class="col-md-12"><button class="btn btn-primary">Add Job</button></div>
-</form>
+<div class="row g-4">
+  <!-- LEFT PANEL -->
+  <div class="col-md-4">
+    <div class="card p-4">
+      <h5 class="mb-3">Add Job</h5>
+      <form method="post" action="/add">
+        <input name="company" class="form-control mb-2" placeholder="Company" required>
+        <input name="role" class="form-control mb-2" placeholder="Role" required>
+        <input name="location" class="form-control mb-2" placeholder="Location">
+        <input name="job_url" class="form-control mb-2" placeholder="Job URL">
+        <input name="source" class="form-control mb-2" placeholder="Source">
+        <input name="ctc_budget" class="form-control mb-2" placeholder="CTC Budget">
+        <input type="date" name="applied_date" class="form-control mb-2">
 
-<h4>Job Applications</h4>
-<table class="table table-striped table-bordered">
-<thead class="table-dark">
-<tr>
-<th>Company</th><th>Role</th><th>Status</th><th>Location</th><th>Applied</th>
-</tr>
-</thead>
-<tbody>
-{% for job in jobs %}
-<tr>
-<td>{{ job.company }}</td>
-<td>{{ job.role }}</td>
-<td>{{ job.status }}</td>
-<td>{{ job.location }}</td>
-<td>{{ job.applied_date }}</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
+        <select name="status" class="form-select mb-2" required>
+          {% for s in statuses %}
+          <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
+
+        <textarea name="comments" class="form-control mb-3" placeholder="Comments"></textarea>
+        <button class="btn btn-primary w-100">Save Job</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="col-md-8">
+    <div class="card p-4">
+      <h5 class="mb-3">Job Applications</h5>
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Company</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Location</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in jobs %}
+          <tr>
+            <td>{{ job.company }}</td>
+            <td>{{ job.role }}</td>
+            <td><span class="badge bg-info">{{ job.status }}</span></td>
+            <td>{{ job.location }}</td>
+            <td>
+              <form method="post" action="/delete/{{ job.id }}">
+                <button class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 {% endblock %}
