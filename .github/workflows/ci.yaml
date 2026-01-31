@@ -44,9 +44,10 @@ jobs:
       run: |
         docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$IMAGE_TAG
 
-    - name: Install GKE gcloud auth plugin
+    - name: Install GKE auth plugin (APT)
       run: |
-        gcloud components install gke-gcloud-auth-plugin --quiet
+        sudo apt-get update
+        sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin
 
     - name: Get GKE credentials
       run: |
