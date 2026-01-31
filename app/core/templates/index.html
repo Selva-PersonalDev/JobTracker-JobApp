@@ -6,7 +6,7 @@
   <!-- LEFT PANEL -->
   <div class="col-lg-4">
     <div class="card p-4">
-      <div class="section-title">Add / Track Job</div>
+      <h6 class="text-muted text-uppercase mb-3">Add Job</h6>
 
       <form method="post" action="/add">
         <input class="form-control mb-2" name="company" placeholder="Company" required>
@@ -19,7 +19,7 @@
 
         <select class="form-select mb-2" name="status" required>
           {% for s in statuses %}
-          <option>{{ s }}</option>
+            <option value="{{ s }}">{{ s }}</option>
           {% endfor %}
         </select>
 
@@ -33,7 +33,7 @@
   <!-- RIGHT PANEL -->
   <div class="col-lg-8">
     <div class="card p-4">
-      <div class="section-title">Applications</div>
+      <h6 class="text-muted text-uppercase mb-3">Applications</h6>
 
       <table class="table align-middle">
         <thead>
@@ -47,44 +47,45 @@
         </thead>
 
         <tbody>
+        {% if jobs %}
           {% for job in jobs %}
           <tr>
             <td><strong>{{ job.company }}</strong></td>
             <td>{{ job.role }}</td>
-
-            <!-- STATUS UPDATE -->
             <td>
               <form method="post" action="/update-status/{{ job.id }}">
                 <select name="status"
-                        class="form-select form-select-sm status-select"
+                        class="form-select form-select-sm"
+                        style="width:190px"
                         onchange="this.form.submit()">
                   {% for s in statuses %}
-                  <option value="{{ s }}" {% if s==job.status %}selected{% endif %}>{{ s }}</option>
+                    <option value="{{ s }}" {% if s == job.status %}selected{% endif %}>
+                      {{ s }}
+                    </option>
                   {% endfor %}
                 </select>
               </form>
             </td>
-
-            <!-- APPLIED DATE -->
-            <td class="text-muted">
-              {{ job.applied_date or "-" }}
-            </td>
-
-            <!-- ACTIONS -->
+            <td class="text-muted">{{ job.applied_date or "-" }}</td>
             <td>
-              <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary action-btn">
-                More details>>
+              <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">
+                More details →
               </a>
-
               <form method="post" action="/delete/{{ job.id }}" style="display:inline">
-                <button class="btn btn-sm btn-outline-danger action-btn">✕</button>
+                <button class="btn btn-sm btn-outline-danger">✕</button>
               </form>
             </td>
           </tr>
           {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              No jobs added yet. Start by adding your first application 🚀
+            </td>
+          </tr>
+        {% endif %}
         </tbody>
       </table>
-
     </div>
   </div>
 
