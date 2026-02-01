@@ -1,24 +1,22 @@
-import io
 import os
 import shutil
 from datetime import date
 
-import pandas as pd
 from fastapi import APIRouter, Request, Form, UploadFile, File
-from fastapi.responses import RedirectResponse, StreamingResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
 
 from app.core.db import SessionLocal, engine
 from app.core.models import Base, Job, User
 from app.core.auth import hash_password, verify_password, get_current_user
+from app.core.storage import (
+    upload_db_to_gcs,
+    upload_jd_to_gcs,
+    download_jd_from_gcs,
+)
 
 Base.metadata.create_all(bind=engine)
-
-UPLOAD_DIR = "/data/jd_files"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/core/templates")
@@ -43,7 +41,11 @@ def login_page(request: Request):
 
 
 @router.post("/login")
-def login(request: Request, username: str = Form(...), password: str = Form(...)):
+def login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
     db = SessionLocal()
     user = db.query(User).filter(User.username == username).first()
     db.close()
@@ -51,7 +53,7 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Invalid username or password"}
+            {"request": request, "error": "Invalid username or password"},
         )
 
     request.session["user_id"] = user.id
@@ -64,19 +66,29 @@ def register_page(request: Request):
 
 
 @router.post("/register")
-def register(request: Request, username: str = Form(...), password: str = Form(...)):
+def register(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
     db = SessionLocal()
+
     if db.query(User).filter(User.username == username).first():
         db.close()
         return templates.TemplateResponse(
             "register.html",
-            {"request": request, "error": "Username already exists"}
+            {"request": request, "error": "Username already exists"},
         )
 
-    user = User(username=username, password_hash=hash_password(password))
+    user = User(
+        username=username,
+        password_hash=hash_password(password),
+    )
     db.add(user)
     db.commit()
     db.close()
+
+    upload_db_to_gcs()
     return RedirectResponse("/login", status_code=303)
 
 
@@ -107,10 +119,11 @@ def home(request: Request):
         {
             "request": request,
             "jobs": jobs,
-            "statuses": STATUS_OPTIONS
-        }
+            "statuses": STATUS_OPTIONS,
+        },
     )
 
+# ---------------- ADD JOB ----------------
 
 @router.post("/add")
 def add_job(
@@ -131,11 +144,15 @@ def add_job(
     if not user_id:
         return RedirectResponse("/login", status_code=303)
 
-    filename = None
+    jd_filename = None
+
     if jd_file and jd_file.filename:
-        filename = f"{user_id}_{jd_file.filename}"
-        with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
+        temp_path = f"/tmp/{jd_file.filename}"
+        with open(temp_path, "wb") as f:
             shutil.copyfileobj(jd_file.file, f)
+
+        upload_jd_to_gcs(temp_path, jd_file.filename)
+        jd_filename = jd_file.filename
 
     db = SessionLocal()
     job = Job(
@@ -146,40 +163,64 @@ def add_job(
         job_url=job_url,
         source=source,
         ctc_budget=ctc_budget,
-        applied_date=date.fromisoformat(applied_date) if applied_date else None,
+        applied_date=date.fromisoformat(applied_date)
+        if applied_date
+        else None,
         status=status,
         job_description=job_description,
-        jd_filename=filename,
+        jd_filename=jd_filename,
         comments=comments,
     )
+
     db.add(job)
     db.commit()
     db.close()
 
+    upload_db_to_gcs()
     return RedirectResponse("/", status_code=303)
 
+# ---------------- UPDATE STATUS ----------------
 
 @router.post("/update-status/{job_id}")
-def update_status(request: Request, job_id: int, status: str = Form(...)):
+def update_status(
+    request: Request,
+    job_id: int,
+    status: str = Form(...),
+):
     user_id = get_current_user(request)
     db = SessionLocal()
-    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id, Job.user_id == user_id)
+        .first()
+    )
     if job:
         job.status = status
         db.commit()
+
     db.close()
+    upload_db_to_gcs()
     return RedirectResponse("/", status_code=303)
 
+# ---------------- DELETE JOB ----------------
 
 @router.post("/delete/{job_id}")
 def delete_job(request: Request, job_id: int):
     user_id = get_current_user(request)
     db = SessionLocal()
-    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id, Job.user_id == user_id)
+        .first()
+    )
     if job:
         db.delete(job)
         db.commit()
+
     db.close()
+    upload_db_to_gcs()
     return RedirectResponse("/", status_code=303)
 
 # ---------------- EDIT JOB ----------------
@@ -188,7 +229,12 @@ def delete_job(request: Request, job_id: int):
 def edit_job_page(request: Request, job_id: int):
     user_id = get_current_user(request)
     db = SessionLocal()
-    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id, Job.user_id == user_id)
+        .first()
+    )
     db.close()
 
     if not job:
@@ -196,7 +242,11 @@ def edit_job_page(request: Request, job_id: int):
 
     return templates.TemplateResponse(
         "edit_job.html",
-        {"request": request, "job": job, "statuses": STATUS_OPTIONS}
+        {
+            "request": request,
+            "job": job,
+            "statuses": STATUS_OPTIONS,
+        },
     )
 
 
@@ -218,7 +268,12 @@ def update_job(
 ):
     user_id = get_current_user(request)
     db = SessionLocal()
-    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id, Job.user_id == user_id)
+        .first()
+    )
 
     if not job:
         db.close()
@@ -230,28 +285,41 @@ def update_job(
     job.job_url = job_url
     job.source = source
     job.ctc_budget = ctc_budget
-    job.applied_date = date.fromisoformat(applied_date) if applied_date else None
+    job.applied_date = (
+        date.fromisoformat(applied_date)
+        if applied_date
+        else None
+    )
     job.status = status
     job.job_description = job_description
     job.comments = comments
 
     if jd_file and jd_file.filename:
-        filename = f"{user_id}_{jd_file.filename}"
-        with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
+        temp_path = f"/tmp/{jd_file.filename}"
+        with open(temp_path, "wb") as f:
             shutil.copyfileobj(jd_file.file, f)
-        job.jd_filename = filename
+
+        upload_jd_to_gcs(temp_path, jd_file.filename)
+        job.jd_filename = jd_file.filename
 
     db.commit()
     db.close()
 
+    upload_db_to_gcs()
     return RedirectResponse("/", status_code=303)
 
+# ---------------- JOB DETAILS ----------------
 
 @router.get("/job/{job_id}")
 def job_detail(request: Request, job_id: int):
     user_id = get_current_user(request)
     db = SessionLocal()
-    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id, Job.user_id == user_id)
+        .first()
+    )
     db.close()
 
     if not job:
@@ -259,10 +327,13 @@ def job_detail(request: Request, job_id: int):
 
     return templates.TemplateResponse(
         "job_detail.html",
-        {"request": request, "job": job}
+        {"request": request, "job": job},
     )
 
+# ---------------- JD DOWNLOAD ----------------
 
 @router.get("/jd/{filename}")
 def download_jd(filename: str):
-    return FileResponse(os.path.join(UPLOAD_DIR, filename), filename=filename)
+    local_path = f"/tmp/{filename}"
+    download_jd_from_gcs(filename, local_path)
+    return FileResponse(local_path, filename=filename)
