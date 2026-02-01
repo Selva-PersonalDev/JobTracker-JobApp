@@ -78,4 +78,12 @@ jobs:
             --timeout 300
 
 
-    
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy jobtracker \
+            --image $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$IMAGE_TAG \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID,DB_PATH=/tmp/jobs.db

@@ -7,10 +7,11 @@ PROJECT_ID = (
     or os.getenv("PROJECT_ID")
 )
 
-if not PROJECT_ID:
-    raise RuntimeError("PROJECT_ID not set in environment")
-
-BUCKET_NAME = f"jobtracker-data-{PROJECT_ID}"
+BUCKET_NAME = (
+    f"jobtracker-data-{PROJECT_ID}"
+    if PROJECT_ID
+    else None
+)
 
 client = storage.Client()
 bucket = client.bucket(BUCKET_NAME)
