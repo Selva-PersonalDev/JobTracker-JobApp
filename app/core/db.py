@@ -5,7 +5,7 @@ from app.core.storage import download_db_from_gcs
 
 # Cloud Run–safe writable path
 DB_PATH = os.getenv("DB_PATH", "/tmp/jobs.db")
-
+download_db_from_gcs()
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
