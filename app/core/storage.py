@@ -1,7 +1,15 @@
 import os
 from google.cloud import storage
 
-PROJECT_ID = os.getenv("PROJECT_ID")
+PROJECT_ID = (
+    os.getenv("GOOGLE_CLOUD_PROJECT")
+    or os.getenv("GCP_PROJECT")
+    or os.getenv("PROJECT_ID")
+)
+
+if not PROJECT_ID:
+    raise RuntimeError("PROJECT_ID not set in environment")
+
 BUCKET_NAME = f"jobtracker-data-{PROJECT_ID}"
 
 client = storage.Client()
