@@ -69,9 +69,13 @@ jobs:
       # ---------------------------
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy $SERVICE_NAME \
+          gcloud run deploy jobtracker \
             --image us-central1-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$IMAGE_TAG \
             --region $REGION \
             --platform managed \
             --allow-unauthenticated \
-            --port 8080
+            --set-env-vars DB_PATH=/tmp/jobs.db \
+            --timeout 300
+
+
+    
