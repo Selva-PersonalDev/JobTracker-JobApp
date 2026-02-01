@@ -1,8 +1,8 @@
-name: Build, Push & Deploy JobTracker to GKE
+name: Build & Deploy JobTracker to Cloud Run
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -14,19 +14,23 @@ env:
   REPO: jobtracker
   IMAGE: jobtracker-core
   IMAGE_TAG: ${{ github.sha }}
-  CLUSTER_NAME: jobtracker-gke
-  CLUSTER_LOCATION: us-central1
-  NAMESPACE: jobtracker
+  SERVICE_NAME: jobtracker
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------------------
+      # Checkout
+      # ---------------------------
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud (OIDC)
+      # ---------------------------
+      # Authenticate to GCP (OIDC)
+      # ---------------------------
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/862280791858/locations/global/workloadIdentityPools/github-pool/providers/github-provider
@@ -35,7 +39,9 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      # 🔴 CRITICAL FIX (DO NOT REMOVE)
+      # ---------------------------
+      # Docker auth (CRITICAL)
+      # ---------------------------
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
@@ -43,27 +49,29 @@ jobs:
             -u oauth2accesstoken \
             --password-stdin https://us-central1-docker.pkg.dev
 
+      # ---------------------------
+      # Build image
+      # ---------------------------
       - name: Build Docker image
         run: |
-          docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$IMAGE_TAG .
+          docker build \
+            -t us-central1-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$IMAGE_TAG .
 
+      # ---------------------------
+      # Push image
+      # ---------------------------
       - name: Push Docker image
         run: |
           docker push us-central1-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$IMAGE_TAG
 
-      - name: Get GKE credentials
-        uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: ${{ env.CLUSTER_NAME }}
-          location: ${{ env.CLUSTER_LOCATION }}
-          project_id: ${{ env.PROJECT_ID }}
-
-      - name: Deploy to GKE
+      # ---------------------------
+      # Deploy to Cloud Run
+      # ---------------------------
+      - name: Deploy to Cloud Run
         run: |
-          kubectl set image deployment/jobtracker-core \
-            jobtracker-core=us-central1-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$IMAGE_TAG \
-            -n $NAMESPACE
-
-      - name: Verify deployment rollout
-        run: |
-          kubectl rollout status deployment/jobtracker-core -n $NAMESPACE
+          gcloud run deploy $SERVICE_NAME \
+            --image us-central1-docker.pkg.dev/$PROJECT_ID/$REPO/$IMAGE:$IMAGE_TAG \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080
