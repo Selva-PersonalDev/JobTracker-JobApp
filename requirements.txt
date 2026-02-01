@@ -8,3 +8,4 @@ itsdangerous
 pandas
 openpyxl
 reportlab
+google-cloud-storage
