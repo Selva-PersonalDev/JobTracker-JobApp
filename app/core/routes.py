@@ -2,10 +2,13 @@ import os
 import shutil
 from datetime import date
 
+import pandas as pd
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+
 from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
 
 from app.core.db import SessionLocal, engine
 from app.core.models import Base, Job, User
@@ -41,11 +44,7 @@ def login_page(request: Request):
 
 
 @router.post("/login")
-def login(
-    request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
-):
+def login(request: Request, username: str = Form(...), password: str = Form(...)):
     db = SessionLocal()
     user = db.query(User).filter(User.username == username).first()
     db.close()
@@ -66,11 +65,7 @@ def register_page(request: Request):
 
 
 @router.post("/register")
-def register(
-    request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
-):
+def register(request: Request, username: str = Form(...), password: str = Form(...)):
     db = SessionLocal()
 
     if db.query(User).filter(User.username == username).first():
@@ -80,10 +75,7 @@ def register(
             {"request": request, "error": "Username already exists"},
         )
 
-    user = User(
-        username=username,
-        password_hash=hash_password(password),
-    )
+    user = User(username=username, password_hash=hash_password(password))
     db.add(user)
     db.commit()
     db.close()
@@ -163,9 +155,7 @@ def add_job(
         job_url=job_url,
         source=source,
         ctc_budget=ctc_budget,
-        applied_date=date.fromisoformat(applied_date)
-        if applied_date
-        else None,
+        applied_date=date.fromisoformat(applied_date) if applied_date else None,
         status=status,
         job_description=job_description,
         jd_filename=jd_filename,
@@ -182,19 +172,11 @@ def add_job(
 # ---------------- UPDATE STATUS ----------------
 
 @router.post("/update-status/{job_id}")
-def update_status(
-    request: Request,
-    job_id: int,
-    status: str = Form(...),
-):
+def update_status(request: Request, job_id: int, status: str = Form(...)):
     user_id = get_current_user(request)
     db = SessionLocal()
 
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id, Job.user_id == user_id)
-        .first()
-    )
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
     if job:
         job.status = status
         db.commit()
@@ -210,11 +192,7 @@ def delete_job(request: Request, job_id: int):
     user_id = get_current_user(request)
     db = SessionLocal()
 
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id, Job.user_id == user_id)
-        .first()
-    )
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
     if job:
         db.delete(job)
         db.commit()
@@ -230,11 +208,7 @@ def edit_job_page(request: Request, job_id: int):
     user_id = get_current_user(request)
     db = SessionLocal()
 
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id, Job.user_id == user_id)
-        .first()
-    )
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
     db.close()
 
     if not job:
@@ -242,11 +216,7 @@ def edit_job_page(request: Request, job_id: int):
 
     return templates.TemplateResponse(
         "edit_job.html",
-        {
-            "request": request,
-            "job": job,
-            "statuses": STATUS_OPTIONS,
-        },
+        {"request": request, "job": job, "statuses": STATUS_OPTIONS},
     )
 
 
@@ -269,12 +239,7 @@ def update_job(
     user_id = get_current_user(request)
     db = SessionLocal()
 
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id, Job.user_id == user_id)
-        .first()
-    )
-
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
     if not job:
         db.close()
         return RedirectResponse("/", status_code=303)
@@ -285,11 +250,7 @@ def update_job(
     job.job_url = job_url
     job.source = source
     job.ctc_budget = ctc_budget
-    job.applied_date = (
-        date.fromisoformat(applied_date)
-        if applied_date
-        else None
-    )
+    job.applied_date = date.fromisoformat(applied_date) if applied_date else None
     job.status = status
     job.job_description = job_description
     job.comments = comments
@@ -315,20 +276,13 @@ def job_detail(request: Request, job_id: int):
     user_id = get_current_user(request)
     db = SessionLocal()
 
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id, Job.user_id == user_id)
-        .first()
-    )
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
     db.close()
 
     if not job:
         return RedirectResponse("/", status_code=303)
 
-    return templates.TemplateResponse(
-        "job_detail.html",
-        {"request": request, "job": job},
-    )
+    return templates.TemplateResponse("job_detail.html", {"request": request, "job": job})
 
 # ---------------- JD DOWNLOAD ----------------
 
@@ -337,3 +291,71 @@ def download_jd(filename: str):
     local_path = f"/tmp/{filename}"
     download_jd_from_gcs(filename, local_path)
     return FileResponse(local_path, filename=filename)
+
+# ---------------- EXPORT EXCEL ----------------
+
+@router.get("/export/excel")
+def export_excel(request: Request):
+    user_id = get_current_user(request)
+    if not user_id:
+        return RedirectResponse("/login", status_code=303)
+
+    db = SessionLocal()
+    jobs = db.query(Job).filter(Job.user_id == user_id).all()
+    db.close()
+
+    data = [{
+        "Company": j.company,
+        "Role": j.role,
+        "Location": j.location,
+        "Job URL": j.job_url,
+        "Source": j.source,
+        "CTC Budget": j.ctc_budget,
+        "Applied Date": j.applied_date,
+        "Status": j.status,
+        "Job Description": j.job_description,
+        "JD File": j.jd_filename,
+        "Comments": j.comments,
+    } for j in jobs]
+
+    df = pd.DataFrame(data)
+    path = "/tmp/jobs.xlsx"
+    df.to_excel(path, index=False)
+
+    return FileResponse(path, filename="jobs.xlsx")
+
+# ---------------- EXPORT PDF ----------------
+
+@router.get("/export/pdf")
+def export_pdf(request: Request):
+    user_id = get_current_user(request)
+    if not user_id:
+        return RedirectResponse("/login", status_code=303)
+
+    db = SessionLocal()
+    jobs = db.query(Job).filter(Job.user_id == user_id).all()
+    db.close()
+
+    path = "/tmp/jobs.pdf"
+    c = canvas.Canvas(path, pagesize=A4)
+    width, height = A4
+    y = height - 40
+
+    for job in jobs:
+        lines = [
+            f"Company: {job.company}",
+            f"Role: {job.role}",
+            f"Status: {job.status}",
+            f"Applied Date: {job.applied_date}",
+            f"JD File: {job.jd_filename}",
+            "-" * 80,
+        ]
+        for line in lines:
+            c.drawString(40, y, line)
+            y -= 14
+            if y < 40:
+                c.showPage()
+                y = height - 40
+
+    c.save()
+    return FileResponse(path, filename="jobs.pdf")
