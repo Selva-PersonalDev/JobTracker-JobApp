@@ -27,9 +27,10 @@ templates = Jinja2Templates(directory="app/core/templates")
 STATUS_OPTIONS = [
     "Applied",
     "Screening Completed",
+    "Profile not shortlisted",
     "Interview 1 Scheduled",
     "Interview 2 Scheduled",
-    "HR discussion Scheduled",
+    "Final HR discussion in progress",
     "Verbal Offer",
     "Offer Released",
     "Offer Accepted",
