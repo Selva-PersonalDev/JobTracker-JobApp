@@ -36,6 +36,7 @@ STATUS_OPTIONS = [
     "Offer Accepted",
     "Joined",
     "Not Selected",
+    "Withdrawn",
 ]
 
 # ---------------- AUTH ----------------
