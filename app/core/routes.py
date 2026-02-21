@@ -29,11 +29,12 @@ STATUS_OPTIONS = [
     "Screening Completed",
     "Interview 1 Scheduled",
     "Interview 2 Scheduled",
-    "Final Interview Scheduled",
+    "HR discussion Scheduled",
     "Verbal Offer",
     "Offer Released",
     "Offer Accepted",
     "Joined",
+    "Not Selected",
 ]
 
 # ---------------- AUTH ----------------
